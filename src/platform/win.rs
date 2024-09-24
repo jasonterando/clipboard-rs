@@ -66,13 +66,22 @@ impl ClipboardContext {
 	}
 
 	fn get_format(&self, format: &ContentFormat) -> c_uint {
+
 		match format {
 			ContentFormat::Text => formats::CF_UNICODETEXT,
 			ContentFormat::Rtf => *self.format_map.get(CF_RTF).unwrap(),
 			ContentFormat::Html => *self.format_map.get(CF_HTML).unwrap(),
 			ContentFormat::Image => formats::CF_DIB,
 			ContentFormat::Files => formats::CF_HDROP,
-			ContentFormat::Other(format) => clipboard_win::register_format(format).unwrap().get(),
+			ContentFormat::Other(format) => {
+				if let Some(existing_format) = self.format_map.get(format) {
+					existing_format
+				} else {
+					let fmt = clipboard_win::register_format(format).unwrap().get();
+					self.format_map.insert(format, fmt);
+					return fmt
+				}
+			},
 		}
 	}
 }
