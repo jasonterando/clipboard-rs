@@ -1,5 +1,6 @@
 use image::imageops::FilterType;
 use image::{DynamicImage, GenericImageView, ImageFormat, RgbaImage};
+use std::collections::HashMap;
 use std::error::Error;
 use std::io::Cursor;
 pub type Result<T> = std::result::Result<T, Box<dyn Error + Send + Sync + 'static>>;
@@ -83,6 +84,17 @@ pub enum ContentFormat {
 	Image,
 	Files,
 	Other(String),
+}
+
+
+#[derive(Clone)]
+pub struct ContentFormats {
+	pub text: bool,
+	pub rtf: bool,
+	pub html: bool,
+	pub image: bool,
+	pub files: bool,
+	pub other: Option<HashMap<String, bool>>,
 }
 
 pub struct RustImageData {

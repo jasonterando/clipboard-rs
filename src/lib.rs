@@ -1,5 +1,8 @@
 pub mod common;
 mod platform;
+use std::collections::HashSet;
+
+use common::ContentFormats;
 pub use common::{ClipboardContent, ClipboardHandler, ContentFormat, Result, RustImageData};
 pub use image::imageops::FilterType;
 #[cfg(target_os = "linux")]
@@ -10,6 +13,10 @@ pub trait Clipboard: Send {
 	/// zh: 获得剪切板当前内容的所有格式
 	/// en: Get all formats of the current content in the clipboard
 	fn available_formats(&self) -> Result<Vec<String>>;
+
+	/// zh: 获得剪切板当前内容的所有格式, 标准化和其他类型
+	/// en: Get all formats of the current content in the clipboard, both standardized and other types
+	fn has_formats(&self, other_formats: Option<HashSet<String>>) -> Result<ContentFormats>;
 
 	fn has(&self, format: ContentFormat) -> bool;
 

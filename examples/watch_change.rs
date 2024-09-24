@@ -1,7 +1,7 @@
 use clipboard_rs::{
 	Clipboard, ClipboardContext, ClipboardHandler, ClipboardWatcher, ClipboardWatcherContext,
 };
-use std::{thread, time::Duration};
+use std::{collections::HashSet, thread, time::Duration};
 
 struct Manager {
 	ctx: ClipboardContext,
@@ -16,10 +16,25 @@ impl Manager {
 
 impl ClipboardHandler for Manager {
 	fn on_clipboard_change(&mut self) {
-		println!(
-			"on_clipboard_change, txt = {}",
-			self.ctx.get_text().unwrap_or("".to_string())
-		);
+
+		// println!("Formats: {}", self.ctx.available_formats().unwrap().join(", "));
+
+		match self.ctx.has_formats(Some(HashSet::from([String::from("TEXT"), String::from("image/webp")]))) {
+			Ok(formats) => {
+				print!("Clipboard - text: {}, rtf: {}, html: {}, image: {}, files: {}",
+					formats.text, formats.rtf, formats.html, formats.image, formats.files
+				);
+				if let Some(other) = formats.other {
+					for (name, value) in other {
+						print!(", {}: {}", name, value);
+					}
+				}
+				println!();
+			},
+			Err(err) => {
+				println!("Clipboard format error: {}", err.to_string());
+			}
+		}
 	}
 }
 
@@ -32,7 +47,7 @@ fn main() {
 		watcher.add_handler(manager).get_shutdown_channel();
 
 	thread::spawn(move || {
-		thread::sleep(Duration::from_secs(5));
+		thread::sleep(Duration::from_secs(60));
 		println!("stop watch!");
 		watcher_shutdown.stop();
 	});

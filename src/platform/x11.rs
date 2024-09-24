@@ -1,9 +1,9 @@
 use crate::{
-	common::{Result, RustImage},
+	common::{ContentFormats, Result, RustImage},
 	ClipboardContent, ClipboardHandler, ContentFormat, RustImageData,
 };
 use crate::{Clipboard, ClipboardWatcher};
-use std::sync::mpsc::{self, Receiver, Sender};
+use std::{collections::{HashMap, HashSet}, sync::mpsc::{self, Receiver, Sender}, vec};
 use std::{
 	sync::{Arc, RwLock},
 	thread,
@@ -456,6 +456,50 @@ impl Clipboard for ClipboardContext {
 			}
 			formats
 		})
+	}
+
+	fn has_formats(&self, other_formats: Option<HashSet<String>>) -> Result<ContentFormats> {
+		let mut text = false;
+		let mut rtf = false;
+		let mut html = false;
+		let mut image = false;
+		let mut files = false;
+		let other: Option<HashMap<String, bool>>;
+		
+		let ctx = &self.inner.server;
+		let atoms = ctx.atoms;
+		let atom_list = self.read(&atoms.TARGETS).map(|data| parse_atom_list(&data))?;
+
+		for fmt in &atom_list {
+			if *fmt == atoms.UTF8_STRING {
+				text = true;
+			} else if *fmt == atoms.RTF {
+				rtf = true;
+			} else if *fmt == atoms.HTML {
+				html = true;
+			} else if *fmt == atoms.PNG_MIME {
+				image = true;
+			} else if *fmt == atoms.FILE_LIST {
+				files = true;
+			}
+		}
+
+		if let Some(format_names) = other_formats {
+			other = Some(format_names.iter().map(|format_name| {
+				let atom = ctx.get_atom(format_name);
+				return (format_name.clone(), match atom {
+					Ok(atom) => atom_list.contains(&atom),
+					Err(_) => false,
+				})
+			}).collect());
+		} else {
+			other = None;
+		}
+
+		return Ok(ContentFormats {
+			text, rtf, html, image, files, other,
+		})
+
 	}
 
 	fn has(&self, format: crate::ContentFormat) -> bool {
