@@ -485,7 +485,7 @@ impl Clipboard for ClipboardContext {
 		}
 
 		if let Some(format_names) = other_formats {
-			other = Some(format_names.iter().map(|format_name| {
+			other = Some(format_names.into_iter().map(|format_name| {
 				let atom = ctx.get_atom(format_name);
 				return (format_name.clone(), match atom {
 					Ok(atom) => atom_list.contains(&atom),

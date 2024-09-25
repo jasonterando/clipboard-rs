@@ -16,7 +16,7 @@ pub trait Clipboard: Send {
 
 	/// zh: 获得剪切板当前内容的所有格式, 标准化和其他类型
 	/// en: Get all formats of the current content in the clipboard, both standardized and other types
-	fn has_formats(&self, other_formats: Option<HashSet<String>>) -> Result<ContentFormats>;
+	fn has_formats(&self, other_formats: Option<HashSet<&str>>) -> Result<ContentFormats>;
 
 	fn has(&self, format: ContentFormat) -> bool;
 

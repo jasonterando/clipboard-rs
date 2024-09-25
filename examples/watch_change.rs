@@ -18,8 +18,7 @@ impl ClipboardHandler for Manager {
 	fn on_clipboard_change(&mut self) {
 
 		// println!("Formats: {}", self.ctx.available_formats().unwrap().join(", "));
-
-		match self.ctx.has_formats(Some(HashSet::from([String::from("TEXT"), String::from("image/webp")]))) {
+		match self.ctx.has_formats(Some(HashSet::from(["CF_TEXT"]))) {
 			Ok(formats) => {
 				print!("Clipboard - text: {}, rtf: {}, html: {}, image: {}, files: {}",
 					formats.text, formats.rtf, formats.html, formats.image, formats.files

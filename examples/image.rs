@@ -37,6 +37,7 @@ fn main() {
 
 	match img {
 		Ok(img) => {
+			println!("Saving to {}test.png", TMP_PATH);
 			let _ = img
 				.save_to_path(format!("{}test.png", TMP_PATH).as_str())
 				.map_err(|e| println!("save test.png err={}", e));

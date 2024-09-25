@@ -1,10 +1,10 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Cursor;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 use std::time::Duration;
 
-use crate::common::{ContentData, Result, RustImage, RustImageData};
+use crate::common::{ContentData, ContentFormats, Result, RustImage, RustImageData};
 use crate::{Clipboard, ClipboardContent, ClipboardHandler, ClipboardWatcher, ContentFormat};
 use clipboard_win::raw::{set_bitmap_with, set_file_list_with, set_string_with, set_without_clear};
 use clipboard_win::types::c_uint;
@@ -64,26 +64,6 @@ impl ClipboardContext {
 			html_format: html_format.ok_or("register html format error")?,
 		})
 	}
-
-	fn get_format(&self, format: &ContentFormat) -> c_uint {
-
-		match format {
-			ContentFormat::Text => formats::CF_UNICODETEXT,
-			ContentFormat::Rtf => *self.format_map.get(CF_RTF).unwrap(),
-			ContentFormat::Html => *self.format_map.get(CF_HTML).unwrap(),
-			ContentFormat::Image => formats::CF_DIB,
-			ContentFormat::Files => formats::CF_HDROP,
-			ContentFormat::Other(format) => {
-				if let Some(existing_format) = self.format_map.get(format) {
-					existing_format
-				} else {
-					let fmt = clipboard_win::register_format(format).unwrap().get();
-					self.format_map.insert(format, fmt);
-					return fmt
-				}
-			},
-		}
-	}
 }
 
 impl<T: ClipboardHandler> ClipboardWatcherContext<T> {
@@ -120,6 +100,52 @@ impl Clipboard for ClipboardContext {
 		Ok(res)
 	}
 
+	fn has_formats(&self, other_formats: Option<HashSet<&str>>) -> Result<ContentFormats> {
+		let mut text = false;
+		let mut rtf = false;
+		let mut html = false;
+		let mut image = false;
+		let mut files = false;
+
+		let _clip = ClipboardWin::new_attempts(10)
+			.map_err(|code| format!("Open clipboard error, code = {}", code));
+
+		let mut other: Option<HashMap<String, bool>> = 
+			match other_formats {
+				Some(formats) => Some(HashMap::from_iter(formats.into_iter().map(|f| (String::from(f), false)))),
+				None => None
+			};
+
+		let enum_formats = clipboard_win::raw::EnumFormats::new();
+		for format in enum_formats {
+			if format == formats::CF_UNICODETEXT {
+				text = true
+			} else if format == *self.format_map.get(CF_RTF).unwrap() {
+				rtf = true
+			} else if format == *self.format_map.get(CF_HTML).unwrap() {
+				html = true
+			} else if format == formats::CF_DIBV5 || format == formats::CF_DIB || format == *self.format_map.get(CF_PNG).unwrap() {
+				image = true
+			} else if format == formats::CF_HDROP {
+				files = true
+			}
+			if let Some(f) = other.as_mut() {
+				if let Some(f_name) = raw::format_name_big(format) {
+					f.entry(f_name).and_modify(|b| *b = true);
+				}
+			}
+		}
+
+		return Ok(ContentFormats {
+			text,
+			rtf,
+			html,
+			image,
+			files,
+			other,
+		});
+	}
+
 	fn has(&self, format: ContentFormat) -> bool {
 		match format {
 			ContentFormat::Text => clipboard_win::is_format_avail(formats::CF_UNICODETEXT),
@@ -135,6 +161,7 @@ impl Clipboard for ClipboardContext {
 				// Currently only judge whether there is a png format
 				let cf_png_uint = self.format_map.get(CF_PNG).unwrap();
 				clipboard_win::is_format_avail(*cf_png_uint)
+					|| clipboard_win::is_format_avail(formats::CF_DIBV5)
 					|| clipboard_win::is_format_avail(formats::CF_DIB)
 			}
 			ContentFormat::Files => clipboard_win::is_format_avail(formats::CF_HDROP),
@@ -259,8 +286,8 @@ impl Clipboard for ClipboardContext {
 					}
 				}
 				ContentFormat::Rtf => {
-					let format_uint = self.get_format(format);
-					let buffer = get(formats::RawData(format_uint));
+					let format_uint = self.format_map.get(CF_RTF).unwrap();
+					let buffer = get(formats::RawData(*format_uint));
 					match buffer {
 						Ok(buffer) => {
 							let rtf = String::from_utf8_lossy(&buffer);
@@ -294,7 +321,7 @@ impl Clipboard for ClipboardContext {
 					}
 				}
 				ContentFormat::Other(fmt) => {
-					let format_uint = self.get_format(format);
+					let format_uint = clipboard_win::register_format(fmt).unwrap().get();
 					let buffer = get(formats::RawData(format_uint));
 					match buffer {
 						Ok(buffer) => {
@@ -410,7 +437,7 @@ impl Clipboard for ClipboardContext {
 					}
 				}
 				ClipboardContent::Rtf(_) | ClipboardContent::Other(_, _) => {
-					let format_uint = self.get_format(&content.get_format());
+					let format_uint = *self.format_map.get(CF_RTF).unwrap();
 					let res = set_without_clear(format_uint, content.as_bytes());
 					if res.is_err() {
 						continue;

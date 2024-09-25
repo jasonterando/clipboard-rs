@@ -87,7 +87,6 @@ pub enum ContentFormat {
 }
 
 
-#[derive(Clone)]
 pub struct ContentFormats {
 	pub text: bool,
 	pub rtf: bool,
