@@ -458,7 +458,7 @@ impl Clipboard for ClipboardContext {
 		})
 	}
 
-	fn has_formats(&self, other_formats: Option<HashSet<String>>) -> Result<ContentFormats> {
+	fn has_formats(&self, other_formats: Option<HashSet<&str>>) -> Result<ContentFormats> {
 		let mut text = false;
 		let mut rtf = false;
 		let mut html = false;
@@ -487,7 +487,7 @@ impl Clipboard for ClipboardContext {
 		if let Some(format_names) = other_formats {
 			other = Some(format_names.into_iter().map(|format_name| {
 				let atom = ctx.get_atom(format_name);
-				return (format_name.clone(), match atom {
+				return (String::from(format_name), match atom {
 					Ok(atom) => atom_list.contains(&atom),
 					Err(_) => false,
 				})
